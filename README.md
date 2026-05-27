@@ -701,11 +701,303 @@ This project demonstrates:
 
 ---
 
-# Final Outcome
+````markdown id="jlwm207"
+# Spring Boot + MySQL Performance Issue & Kafka Solution
 
-Successfully developed a scalable large-scale
-MySQL benchmarking system capable of processing
-millions of employee records efficiently using Python.
+---
+
+# Problem Statement
+
+Initially, the project used direct bulk insertion from Python/Spring Boot into MySQL.
+
+Architecture:
+
+```text
+Application → MySQL
+````
+
+This approach worked successfully for small datasets.
+
+However, when huge datasets were used, the system started failing due to database overload and connection timeout issues.
+
+---
+
+# Small Dataset Test (Successful)
+
+When inserting small datasets like:
+
+* 10 rows
+* 100 rows
+* 1000 rows
+
+the system worked correctly.
+
+Example Output:
+
+```text
+✅ Data Inserted Successfully
+📊 Total Rows: 10
+⏱ Time Taken: 0.05 sec
+```
+
+---
+
+# Why Small Data Works
+
+Small datasets create:
+
+* small SQL queries
+* low RAM usage
+* fast transactions
+* minimal database load
+
+So MySQL handles the insertion easily.
+
+---
+
+# Huge Dataset Problem
+
+When huge datasets were tested:
+
+```text
+14 million+ rows
+```
+
+the system started failing.
+
+---
+
+# Error Encountered
+
+```text
+OperationalError: 2013 (HY000):
+Lost connection to MySQL server during query
+```
+
+---
+
+# Why This Error Happens
+
+Huge bulk insertion creates:
+
+* very large SQL packets
+* long-running transactions
+* high memory usage
+* database overload
+* connection timeout
+
+The application tries to send millions of records directly to MySQL at once.
+
+This causes:
+
+| Problem            | Explanation                                |
+| ------------------ | ------------------------------------------ |
+| Timeout            | Query execution becomes too long           |
+| Memory overload    | Huge batch stored in RAM                   |
+| Database pressure  | MySQL cannot handle massive direct traffic |
+| Application freeze | Thread blocks while waiting                |
+| Scalability issue  | System cannot scale properly               |
+
+---
+
+# Direct Architecture Limitation
+
+Initial Architecture:
+
+```text
+Python / Spring Boot → MySQL
+```
+
+This architecture is tightly coupled.
+
+Meaning:
+
+* application depends directly on database
+* database becomes bottleneck
+* traffic spikes crash performance
+
+---
+
+# Real Industry Scenario
+
+Modern systems generate massive real-time data:
+
+* banking transactions
+* e-commerce orders
+* analytics events
+* ride bookings
+* notifications
+* streaming events
+
+Millions of records may arrive every second.
+
+Direct database insertion becomes unstable at scale.
+
+---
+
+# Solution → Apache Kafka
+
+To solve this problem, Apache Kafka is introduced.
+
+---
+
+# Kafka Architecture
+
+```text
+Producer → Kafka → Consumer → MySQL
+```
+
+---
+
+# Updated Project Architecture
+
+```text
+                ┌─────────────────────┐
+                │ Python / Spring App │
+                │ Producer            │
+                └──────────┬──────────┘
+                           │
+                           ▼
+                ┌─────────────────────┐
+                │ Apache Kafka        │
+                │ Message Broker      │
+                └──────────┬──────────┘
+                           │
+                           ▼
+                ┌─────────────────────┐
+                │ Spring Boot         │
+                │ Kafka Consumer      │
+                └──────────┬──────────┘
+                           │
+                           ▼
+                ┌─────────────────────┐
+                │ MySQL Database      │
+                └─────────────────────┘
+```
+
+---
+
+# How Kafka Solves The Problem
+
+---
+
+# 1. Kafka Works As Buffer
+
+Instead of directly sending data to MySQL:
+
+```text
+Application → Kafka
+```
+
+Kafka temporarily stores records safely.
+
+Consumers then process records gradually.
+
+This reduces database pressure.
+
+---
+
+# 2. Asynchronous Processing
+
+Without Kafka:
+
+```text
+Application waits for database
+```
+
+With Kafka:
+
+```text
+Send message → Continue processing
+```
+
+Producer does not wait for database response.
+
+System becomes much faster.
+
+---
+
+# 3. Prevents Database Overload
+
+Kafka absorbs huge traffic spikes.
+
+Instead of millions of direct insert queries:
+
+```text
+Kafka queues records safely
+```
+
+Consumers insert data in manageable batches.
+
+---
+
+# 4. Fault Tolerance
+
+If MySQL crashes temporarily:
+
+✅ Kafka still stores data safely.
+
+No data loss occurs.
+
+---
+
+# 5. Better Scalability
+
+Multiple consumers can run in parallel.
+
+Example:
+
+```text
+Consumer-1
+Consumer-2
+Consumer-3
+```
+
+Parallel processing increases throughput.
+
+---
+
+# 6. High Throughput
+
+Kafka can process:
+
+```text
+Millions of messages per second
 
 ```
+
+which makes it ideal for:
+
+* big data systems
+* analytics pipelines
+* real-time streaming
+* enterprise applications
+
+---
+
+# Small Data vs Huge Data
+
+| Feature             | Small Data | Huge Data |
+| ------------------- | ---------- | --------- |
+| Direct MySQL Insert | ✅ Works    | ❌ Fails   |
+| Memory Usage        | Low        | Very High |
+| Timeout Risk        | Low        | High      |
+| Scalability         | Limited    | Poor      |
+| Kafka Required      | No         | Yes       |
+
+---
+
+# Benefits of Kafka in This Project
+
+| Benefit          | Explanation                                 |
+| ---------------- | ------------------------------------------- |
+| Decoupling       | Application and database become independent |
+| Scalability      | Multiple consumers can be added             |
+| Reliability      | Messages stored safely                      |
+| Buffering        | Handles traffic spikes                      |
+| Fault Tolerance  | No data loss                                |
+| High Throughput  | Processes massive real-time data            |
+| Async Processing | Faster system response                      |
+
+---
 ```
